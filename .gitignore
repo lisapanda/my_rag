@@ -1,0 +1,5 @@
+.my_rag/
+node_modules/
+.env
+__pycache__/
+*.py[cod]
