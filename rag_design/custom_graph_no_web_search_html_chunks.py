@@ -5,7 +5,7 @@ from typing import List
 
 import chromadb
 from config import CHROMA_HTML_COLLECTION_NAME, DATA_DIR
-from langchain_community.tools.tavily_search import TavilySearchResults
+# from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_core.documents import Document
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 from langchain_core.prompts import PromptTemplate
@@ -23,7 +23,7 @@ def _set_env_if_missing(key: str):
         os.environ[key] = getpass.getpass(f"{key}:")
 
 
-_set_env_if_missing("TAVILY_API_KEY")
+# _set_env_if_missing("TAVILY_API_KEY")
 
 client = chromadb.PersistentClient(path=str(DATA_DIR))
 collection = client.get_or_create_collection(CHROMA_HTML_COLLECTION_NAME)
@@ -87,7 +87,7 @@ generation_prompt = PromptTemplate(
 )
 rag_chain = generation_prompt | model | StrOutputParser()
 
-web_search_tool = TavilySearchResults(k=3)
+# web_search_tool = TavilySearchResults(k=3)
 
 
 def retrieve(state):
