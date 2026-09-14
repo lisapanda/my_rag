@@ -1,10 +1,11 @@
+#with chroma_v4, all-MiniLM-L6-v2(default) + larger chunk size + excluding sources 
 import getpass
 import os
 import uuid
 from typing import List
 
-import chromadb
-from config import CHROMA_COLLECTION_NAME, DATA_DIR
+import chromadb 
+from config import CHROMA_HTML_COLLECTION_NAME, DATA_DIR
 # from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_core.documents import Document
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
@@ -26,7 +27,7 @@ def _set_env_if_missing(key: str):
 # _set_env_if_missing("TAVILY_API_KEY")
 
 client = chromadb.PersistentClient(path=str(DATA_DIR))
-collection = client.get_or_create_collection(CHROMA_COLLECTION_NAME)
+collection = client.get_or_create_collection(CHROMA_HTML_COLLECTION_NAME)
 
 
 class GraphState(TypedDict):
@@ -95,7 +96,7 @@ def retrieve(state):
     question = state["question"]
     documents = collection.query(
         query_texts=[question],
-        n_results=3,
+        n_results=10,
         include=["documents"],
     )["documents"][0]
 
