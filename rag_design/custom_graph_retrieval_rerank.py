@@ -38,6 +38,14 @@ client = chromadb.PersistentClient(path=str(DATA_DIR))
 collection = client.get_or_create_collection(CHROMA_HTML_COLLECTION_NAME)
 _movie_titles = None
 
+# Design-specific settings reported by the evaluation runner.
+EVALUATION_METADATA = {
+    "retrieval_mode": "hybrid",
+    "chunking": "HTML headers + recursive chunks; chunk_size=1200; overlap=200",
+    "answer_review": False,
+    "max_generation_attempts": 1,
+}
+
 
 class GraphState(TypedDict):
     """
