@@ -11,12 +11,14 @@ from langchain_core.documents import Document
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 from langchain_core.prompts import PromptTemplate
 from langgraph.graph import END, START, StateGraph
-from typing_extensions import TypedDict
+from typing_extensions import NotRequired, TypedDict
 
 try:
     from .models import model
+    from .movie_retrieval import query_movie_documents
 except ImportError:  # pragma: no cover - fallback for direct script execution
     from models import model
+    from movie_retrieval import query_movie_documents
 
 
 def _set_env_if_missing(key: str):
@@ -28,6 +30,7 @@ def _set_env_if_missing(key: str):
 
 client = chromadb.PersistentClient(path=str(DATA_DIR))
 collection = client.get_or_create_collection(CHROMA_HTML_COLLECTION_NAME)
+_movie_titles = None
 
 
 class GraphState(TypedDict):
@@ -46,6 +49,7 @@ class GraphState(TypedDict):
     search: str
     documents: List[str]
     steps: List[str]
+    retrieval_n_results: NotRequired[int]
 
 
 retrieval_prompt = PromptTemplate(
@@ -93,12 +97,17 @@ rag_chain = generation_prompt | model | StrOutputParser()
 
 def retrieve(state):
     """Retrieve documents."""
+    global _movie_titles
     question = state["question"]
-    documents = collection.query(
-        query_texts=[question],
-        n_results=10,
-        include=["documents"],
-    )["documents"][0]
+    if _movie_titles is None:
+        # Read once per process; older collections without titles stay unfiltered.
+        metadata = collection.get(include=["metadatas"])["metadatas"] or []
+        _movie_titles = sorted({item["movie_title"] for item in metadata
+                                if item and item.get("movie_title")})
+    documents = query_movie_documents(
+        collection, question, _movie_titles,
+        n_results=state.get("retrieval_n_results", 10),
+    )
 
     steps = state["steps"]
     steps.append("retrieve_documents")
@@ -197,19 +206,25 @@ def build_custom_graph():
 custom_graph = build_custom_graph()
 
 
-def predict_custom_agent_local_answer(example: dict):
+def predict_custom_agent_local_answer(example: dict, retrieval_n_results: int = 10):
+    if retrieval_n_results < 1:
+        raise ValueError("retrieval_n_results must be positive")
     config = {"configurable": {"thread_id": str(uuid.uuid4())}}
     state_dict = custom_graph.invoke(
-        {"question": example["input"], "steps": []},
+        {"question": example["input"], "steps": [],
+         "retrieval_n_results": retrieval_n_results},
         config,
     )
     return {"response": state_dict["generation"], "steps": state_dict["steps"]}
 
 
-def target(example: dict) -> dict:
+def target(example: dict, retrieval_n_results: int = 10) -> dict:
+    if retrieval_n_results < 1:
+        raise ValueError("retrieval_n_results must be positive")
     config = {"configurable": {"thread_id": str(uuid.uuid4())}}
     state_dict = custom_graph.invoke(
-        {"question": example["input"], "steps": []},
+        {"question": example["input"], "steps": [],
+         "retrieval_n_results": retrieval_n_results},
         config,
     )
     return {"response": state_dict["generation"]}
